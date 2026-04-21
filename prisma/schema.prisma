@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Platform {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  TWITTER
+  LINKEDIN
+  PINTEREST
+}
+
+enum Niche {
+  BEAUTY
+  FASHION
+  TECH
+  FOOD
+  TRAVEL
+  FITNESS
+  GAMING
+  LIFESTYLE
+  PARENTING
+  FINANCE
+  EDUCATION
+  OTHER
+}
+
+enum CreatorLevel {
+  NANO        // < 10K
+  MICRO       // 10K - 100K
+  MACRO       // 100K - 1M
+  MEGA        // > 1M
+}
+
+enum VettingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────
+// CREATOR PROFILE
+// ─────────────────────────────────────────
+
+model Creator {
+  id              String        @id @default(uuid())
+  userId          String        @unique @map("user_id") // ref vers auth-service
+  username        String        @unique
+  bio             String?
+  location        String?
+  level           CreatorLevel  @default(NANO)
+  isAvailable     Boolean       @default(true) @map("is_available")
+
+  platforms       CreatorPlatform[]
+  niches          CreatorNiche[]
+  portfolio       PortfolioItem[]
+  vetting         Vetting?
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("creators")
+}
+
+model CreatorPlatform {
+  id          String    @id @default(uuid())
+  creatorId   String    @map("creator_id")
+  platform    Platform
+  handle      String
+  followers   Int       @default(0)
+  avgViews    Int       @default(0) @map("avg_views")
+  engagementRate Float  @default(0) @map("engagement_rate")
+
+  creator     Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, platform])
+  @@map("creator_platforms")
+}
+
+model CreatorNiche {
+  id          String  @id @default(uuid())
+  creatorId   String  @map("creator_id")
+  niche       Niche
+
+  creator     Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, niche])
+  @@map("creator_niches")
+}
+
+model PortfolioItem {
+  id          String   @id @default(uuid())
+  creatorId   String   @map("creator_id")
+  title       String
+  url         String
+  thumbnail   String?
+  platform    Platform?
+  views       Int      @default(0)
+
+  creator     Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("portfolio_items")
+}
+
+// ─────────────────────────────────────────
+// VETTING
+// ─────────────────────────────────────────
+
+model Vetting {
+  id            String        @id @default(uuid())
+  creatorId     String        @unique @map("creator_id")
+  status        VettingStatus @default(PENDING)
+  reviewedBy    String?       @map("reviewed_by") // userId de l'admin/agence
+  comment       String?
+  verifiedAt    DateTime?     @map("verified_at")
+
+  creator       Creator       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@map("vettings")
+}
+
+// ─────────────────────────────────────────
+// BRAND
+// ─────────────────────────────────────────
+
+enum BrandCategory {
+  BEAUTY
+  FASHION
+  TECH
+  FOOD
+  SPORT
+  HEALTH
+  HOME
+  TRAVEL
+  FINANCE
+  EDUCATION
+  OTHER
+}
+
+model Brand {
+  id            String        @id @default(uuid())
+  agencyUserId  String        @map("agency_user_id") // ref vers auth-service
+  name          String
+  slug          String        @unique
+  description   String?
+  logo          String?
+  website       String?
+  category      BrandCategory
+  legalName     String?       @map("legal_name")
+  vatNumber     String?       @map("vat_number")
+  country       String?
+  isActive      Boolean       @default(true) @map("is_active")
+
+  products      BrandProduct[]
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@map("brands")
+}
+
+model BrandProduct {
+  id          String   @id @default(uuid())
+  brandId     String   @map("brand_id")
+  name        String
+  description String?
+  url         String?
+  imageUrl    String?  @map("image_url")
+
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("brand_products")
+}
